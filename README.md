@@ -10,7 +10,8 @@ Fully-automated Tech/AI News YouTube Shorts channel. Goal: 3 uploads/day,
       + description + tags.
 - [x] **Step 2 — Voice Agent**: converts the script into narration audio
       using Edge-TTS (free, no API key).
-- [ ] Step 3 — Visuals Agent (Pexels/Pixabay: fetch matching stock clips)
+- [x] **Step 3 — Visuals Agent**: downloads matching vertical stock video
+      clips from Pexels based on the script's tags/title.
 - [ ] Step 4 — Captions Agent (Whisper: burn in subtitles)
 - [ ] Step 5 — Video Assembly (FFmpeg: combine everything into the final .mp4)
 - [ ] Step 6 — Upload Agent (YouTube Data API: auto-publish)
