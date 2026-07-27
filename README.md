@@ -6,9 +6,10 @@ Fully-automated Tech/AI News YouTube Shorts channel. Goal: 3 uploads/day,
 ## Progress
 
 - [x] **Step 1 — Script Agent**: fetches a real, recent AI/tech news story
-      (via Gemini search grounding) and writes a 30s spoken script + title
+      (via free RSS feeds) and writes a 30s spoken script + title
       + description + tags.
-- [ ] Step 2 — Voice Agent (Edge-TTS: script → narration audio)
+- [x] **Step 2 — Voice Agent**: converts the script into narration audio
+      using Edge-TTS (free, no API key).
 - [ ] Step 3 — Visuals Agent (Pexels/Pixabay: fetch matching stock clips)
 - [ ] Step 4 — Captions Agent (Whisper: burn in subtitles)
 - [ ] Step 5 — Video Assembly (FFmpeg: combine everything into the final .mp4)
