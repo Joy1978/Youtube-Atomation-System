@@ -12,7 +12,8 @@ Fully-automated Tech/AI News YouTube Shorts channel. Goal: 3 uploads/day,
       using Edge-TTS (free, no API key).
 - [x] **Step 3 — Visuals Agent**: downloads matching vertical stock video
       clips from Pexels based on the script's tags/title.
-- [ ] Step 4 — Captions Agent (Whisper: burn in subtitles)
+- [x] **Step 4 — Captions Agent**: transcribes the narration with Whisper
+      and generates short-form burn-in captions (.srt + word timings).
 - [ ] Step 5 — Video Assembly (FFmpeg: combine everything into the final .mp4)
 - [ ] Step 6 — Upload Agent (YouTube Data API: auto-publish)
 - [ ] Step 7 — GitHub Actions workflow tying it all together on a 3x/day cron
