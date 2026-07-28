@@ -15,14 +15,20 @@ Run:
 """
 
 import json
+import random
 import subprocess
 from pathlib import Path
 
 OUTPUT_DIR = Path(__file__).parent / "output"
+MUSIC_DIR = Path(__file__).parent.parent / "assets" / "music"
 
 TARGET_WIDTH = 1080
 TARGET_HEIGHT = 1920
 TARGET_FPS = 30
+
+# Background music volume relative to narration (1.0 = same as voice).
+# Keep this low so the narration stays clearly audible.
+MUSIC_VOLUME = 0.12
 
 # Style for burned-in captions (ffmpeg subtitles filter "force_style").
 # Big, bold, centered — standard short-form caption look.
@@ -63,6 +69,15 @@ def escape_for_ffmpeg_filter(path: Path) -> str:
     p = str(path.resolve()).replace("\\", "/")
     p = p.replace(":", "\\:")
     return p
+
+
+def pick_random_music() -> Path | None:
+    if not MUSIC_DIR.exists():
+        return None
+    tracks = list(MUSIC_DIR.glob("*.mp3")) + list(MUSIC_DIR.glob("*.wav"))
+    if not tracks:
+        return None
+    return random.choice(tracks)
 
 
 def build_visuals_segment(clip_paths: list[Path], total_duration: float, out_path: Path) -> None:
@@ -122,17 +137,37 @@ def main():
 
     print("   Adding narration + burning in captions...")
     subs_arg = escape_for_ffmpeg_filter(captions_path)
-    cmd = [
-        "ffmpeg", "-y",
-        "-i", str(silent_video_path),
-        "-i", str(voice_path),
-        "-filter_complex",
-        f"[0:v]subtitles='{subs_arg}':force_style='{SUBTITLE_STYLE}'[outv]",
-        "-map", "[outv]", "-map", "1:a",
-        "-c:v", "libx264", "-c:a", "aac",
-        "-shortest",
-        str(final_path),
-    ]
+
+    music_path = pick_random_music()
+    if music_path:
+        print(f"   Mixing in background music: {music_path.name}")
+        cmd = [
+            "ffmpeg", "-y",
+            "-i", str(silent_video_path),
+            "-i", str(voice_path),
+            "-stream_loop", "-1", "-i", str(music_path),
+            "-filter_complex",
+            f"[0:v]subtitles='{subs_arg}':force_style='{SUBTITLE_STYLE}'[outv];"
+            f"[2:a]atrim=0:{audio_duration:.3f},volume={MUSIC_VOLUME}[music];"
+            f"[1:a][music]amix=inputs=2:duration=first:dropout_transition=2[outa]",
+            "-map", "[outv]", "-map", "[outa]",
+            "-c:v", "libx264", "-c:a", "aac",
+            "-shortest",
+            str(final_path),
+        ]
+    else:
+        print("   No background music found in assets/music/ — skipping (voice-only).")
+        cmd = [
+            "ffmpeg", "-y",
+            "-i", str(silent_video_path),
+            "-i", str(voice_path),
+            "-filter_complex",
+            f"[0:v]subtitles='{subs_arg}':force_style='{SUBTITLE_STYLE}'[outv]",
+            "-map", "[outv]", "-map", "1:a",
+            "-c:v", "libx264", "-c:a", "aac",
+            "-shortest",
+            str(final_path),
+        ]
     run(cmd)
 
     silent_video_path.unlink(missing_ok=True)
