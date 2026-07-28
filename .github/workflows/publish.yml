@@ -1,0 +1,66 @@
+name: Publish AI News Short
+
+on:
+  schedule:
+    # All times UTC. These correspond to 7:00 AM, 5:00 PM, and 9:30 PM
+    # Colombo time. GitHub's cron scheduler can run a few minutes late
+    # during high-load periods — that's normal, not a bug.
+    - cron: "30 1 * * *"
+    - cron: "30 11 * * *"
+    - cron: "0 16 * * *"
+  workflow_dispatch: {}  # lets you trigger a run manually from the Actions tab, for testing
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Cache Whisper model
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/whisper
+          key: whisper-base-model
+
+      - name: Restore secret credential files
+        run: |
+          echo "${{ secrets.CLIENT_SECRET_JSON }}" > client_secret.json
+          echo "${{ secrets.TOKEN_JSON }}" > token.json
+          echo "${{ secrets.SERVICE_ACCOUNT_JSON }}" > service_account.json
+
+      - name: Run pipeline
+        working-directory: agents
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
+          GOOGLE_SHEET_ID: ${{ secrets.GOOGLE_SHEET_ID }}
+        run: |
+          python script_agent.py
+          python voice_agent.py
+          python visuals_agent.py
+          python captions_agent.py
+          python video_agent.py
+          python upload_agent.py
+
+      - name: Commit updated state back to repo
+        run: |
+          git config user.name "ai-news-shorts-bot"
+          git config user.email "actions@github.com"
+          git add agents/state/recent_topics.json upload_log.csv 2>/dev/null || true
+          git diff --cached --quiet || git commit -m "Update pipeline state [skip ci]"
+          git push
