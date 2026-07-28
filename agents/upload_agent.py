@@ -14,17 +14,27 @@ Run:
     python agents/upload_agent.py
 """
 
+import csv
 import json
+import os
+from datetime import datetime, timezone
 from pathlib import Path
 
+import gspread
+from dotenv import load_dotenv
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 
+load_dotenv()
+
 PROJECT_ROOT = Path(__file__).parent.parent
 OUTPUT_DIR = Path(__file__).parent / "output"
+LOG_FILE = PROJECT_ROOT / "upload_log.csv"
+SERVICE_ACCOUNT_FILE = PROJECT_ROOT / "service_account.json"
+GOOGLE_SHEET_ID = os.environ.get("GOOGLE_SHEET_ID")
 
 CLIENT_SECRET_FILE = PROJECT_ROOT / "client_secret.json"
 TOKEN_FILE = PROJECT_ROOT / "token.json"
@@ -70,6 +80,39 @@ def ensure_shorts_hashtag(text: str) -> str:
     return text if "#Shorts" in text else f"{text}\n\n#Shorts"
 
 
+def log_upload(video_id: str, title: str, source_link: str) -> None:
+    now = datetime.now(timezone.utc)
+    row = [
+        now.strftime("%Y-%m-%d"),
+        now.strftime("%H:%M:%S"),
+        title,
+        video_id,
+        f"https://youtube.com/shorts/{video_id}",
+        source_link,
+    ]
+
+    # Always write the local CSV first — it's the safety net if the
+    # Sheets call fails for any reason (network, permissions, etc).
+    is_new_file = not LOG_FILE.exists()
+    with open(LOG_FILE, "a", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        if is_new_file:
+            writer.writerow(["date", "time_utc", "title", "video_id", "video_url", "source_article"])
+        writer.writerow(row)
+
+    if not SERVICE_ACCOUNT_FILE.exists() or not GOOGLE_SHEET_ID:
+        print("ℹ️  Google Sheet logging not configured — logged to upload_log.csv only.")
+        return
+
+    try:
+        gc = gspread.service_account(filename=str(SERVICE_ACCOUNT_FILE))
+        sheet = gc.open_by_key(GOOGLE_SHEET_ID).sheet1
+        sheet.append_row(row)
+        print("📋 Logged to Google Sheet.")
+    except Exception as e:
+        print(f"⚠️  Google Sheet logging failed ({e}) — entry is still saved in upload_log.csv.")
+
+
 def main():
     script_path = find_latest("script_*.json")
     timestamp = script_path.stem.replace("script_", "")
@@ -108,6 +151,8 @@ def main():
             print(f"   Upload progress: {int(status.progress() * 100)}%")
 
     video_id = response["id"]
+    log_upload(video_id, data["title"], data.get("source_link", ""))
+
     print(f"\n✅ Uploaded! https://youtube.com/shorts/{video_id}")
 
 
