@@ -14,7 +14,8 @@ Fully-automated Tech/AI News YouTube Shorts channel. Goal: 3 uploads/day,
       clips from Pexels based on the script's tags/title.
 - [x] **Step 4 — Captions Agent**: transcribes the narration with Whisper
       and generates short-form burn-in captions (.srt + word timings).
-- [ ] Step 5 — Video Assembly (FFmpeg: combine everything into the final .mp4)
+- [x] **Step 5 — Video Assembly**: combines voice + visuals + burned-in
+      captions into the final vertical 1080x1920 .mp4 via ffmpeg.
 - [ ] Step 6 — Upload Agent (YouTube Data API: auto-publish)
 - [ ] Step 7 — GitHub Actions workflow tying it all together on a 3x/day cron
 
