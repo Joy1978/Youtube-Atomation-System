@@ -3,12 +3,13 @@ Step 5: Video Assembly Agent
 ------------------------------
 Combines the outputs of the previous steps into the final vertical
 (1080x1920) .mp4:
-  - voice_<ts>.mp3        (Step 2)
-  - visual_<ts>_*.mp4     (Step 3, via visuals_<ts>.json manifest)
-  - captions_<ts>.srt     (Step 4, burned in as subtitles)
+  - voice_<ts>.mp3          (Step 2)
+  - visual_<ts>_*.(mp4/jpg) (Step 3, via visuals_<ts>.json manifest —
+                              video clips play normally, images get a
+                              Ken Burns zoom effect so nothing sits static)
+  - captions_<ts>.srt       (Step 4, burned in as subtitles)
 
-Uses ffmpeg directly via subprocess — no extra Python video library needed
-beyond what Step 4 already required you to install.
+Uses ffmpeg directly via subprocess.
 
 Run:
     python agents/video_agent.py
@@ -26,12 +27,8 @@ TARGET_WIDTH = 1080
 TARGET_HEIGHT = 1920
 TARGET_FPS = 30
 
-# Background music volume relative to narration (1.0 = same as voice).
-# Keep this low so the narration stays clearly audible.
 MUSIC_VOLUME = 0.12
 
-# Style for burned-in captions (ffmpeg subtitles filter "force_style").
-# Big, bold, centered — standard short-form caption look.
 SUBTITLE_STYLE = (
     "FontName=Arial,FontSize=16,Bold=1,PrimaryColour=&H00FFFFFF,"
     "OutlineColour=&H00000000,BorderStyle=1,Outline=2,Shadow=0,"
@@ -49,15 +46,12 @@ def find_latest(pattern: str) -> Path:
 def run(cmd: list[str]) -> None:
     result = subprocess.run(cmd, capture_output=True, text=True)
     if result.returncode != 0:
-        print(result.stderr[-3000:])  # ffmpeg errors can be long; show the tail
+        print(result.stderr[-3000:])
         raise SystemExit(f"Command failed: {' '.join(cmd)}")
 
 
 def get_audio_duration(audio_path: Path) -> float:
-    cmd = [
-        "ffprobe", "-v", "error", "-show_entries", "format=duration",
-        "-of", "json", str(audio_path),
-    ]
+    cmd = ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "json", str(audio_path)]
     result = subprocess.run(cmd, capture_output=True, text=True)
     if result.returncode != 0:
         raise SystemExit(f"ffprobe failed on {audio_path}: {result.stderr}")
@@ -65,7 +59,6 @@ def get_audio_duration(audio_path: Path) -> float:
 
 
 def escape_for_ffmpeg_filter(path: Path) -> str:
-    """ffmpeg filter args treat ':' and '\\' specially — this matters a lot on Windows paths."""
     p = str(path.resolve()).replace("\\", "/")
     p = p.replace(":", "\\:")
     return p
@@ -80,21 +73,33 @@ def pick_random_music() -> Path | None:
     return random.choice(tracks)
 
 
-def build_visuals_segment(clip_paths: list[Path], total_duration: float, out_path: Path) -> None:
-    """Trim each clip to an even share of total_duration, scale/crop to
-    portrait 1080x1920, and concat them into one silent video segment."""
-    n = len(clip_paths)
+def build_visuals_segment(clips: list[dict], total_duration: float, out_path: Path) -> None:
+    """Builds one silent video segment from a mix of video clips (trimmed to
+    an even share of total_duration) and images (Ken Burns zoom effect)."""
+    n = len(clips)
     per_clip = total_duration / n
+    frames = max(1, round(per_clip * TARGET_FPS))
 
     inputs = []
     filter_parts = []
-    for i, clip in enumerate(clip_paths):
-        inputs += ["-i", str(clip)]
-        filter_parts.append(
-            f"[{i}:v]trim=0:{per_clip:.3f},setpts=PTS-STARTPTS,"
-            f"scale={TARGET_WIDTH}:{TARGET_HEIGHT}:force_original_aspect_ratio=increase,"
-            f"crop={TARGET_WIDTH}:{TARGET_HEIGHT},fps={TARGET_FPS}[v{i}]"
-        )
+    for i, clip in enumerate(clips):
+        path = clip["path"]
+        if clip["type"] == "video":
+            inputs += ["-i", path]
+            filter_parts.append(
+                f"[{i}:v]trim=0:{per_clip:.3f},setpts=PTS-STARTPTS,"
+                f"scale={TARGET_WIDTH}:{TARGET_HEIGHT}:force_original_aspect_ratio=increase,"
+                f"crop={TARGET_WIDTH}:{TARGET_HEIGHT},setsar=1,fps={TARGET_FPS}[v{i}]"
+            )
+        else:  # image — loop it and apply a slow Ken Burns zoom
+            inputs += ["-loop", "1", "-i", path]
+            filter_parts.append(
+                f"[{i}:v]scale={TARGET_WIDTH}:{TARGET_HEIGHT}:force_original_aspect_ratio=increase,"
+                f"crop={TARGET_WIDTH}:{TARGET_HEIGHT},scale={TARGET_WIDTH*2}:{TARGET_HEIGHT*2},"
+                f"zoompan=z='min(zoom+0.0015,1.2)':d={frames}:"
+                f"x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s={TARGET_WIDTH}x{TARGET_HEIGHT}:fps={TARGET_FPS},"
+                f"setsar=1,trim=0:{per_clip:.3f},setpts=PTS-STARTPTS[v{i}]"
+            )
 
     concat_inputs = "".join(f"[v{i}]" for i in range(n))
     filter_complex = ";".join(filter_parts) + f";{concat_inputs}concat=n={n}:v=1:a=0[outv]"
@@ -118,10 +123,7 @@ def main():
 
     for p in (voice_path, visuals_manifest_path, captions_path):
         if not p.exists():
-            raise SystemExit(
-                f"Missing {p.name} — make sure Steps 2, 3 and 4 all ran for "
-                f"this same timestamp ({timestamp})."
-            )
+            raise SystemExit(f"Missing {p.name} — make sure Steps 2, 3 and 4 all ran for timestamp {timestamp}.")
 
     print("🎬 Assembling final video...")
 
@@ -129,11 +131,11 @@ def main():
     print(f"   Narration length: {audio_duration:.1f}s")
 
     clips = json.loads(visuals_manifest_path.read_text())
-    clip_paths = [Path(c["path"]) for c in clips]
+    print(f"   Assembling {len(clips)} visual asset(s) ({sum(1 for c in clips if c['type']=='video')} video, "
+          f"{sum(1 for c in clips if c['type']=='image')} image)...")
 
     silent_video_path = OUTPUT_DIR / f"_silent_{timestamp}.mp4"
-    print(f"   Assembling {len(clip_paths)} visual clip(s)...")
-    build_visuals_segment(clip_paths, audio_duration, silent_video_path)
+    build_visuals_segment(clips, audio_duration, silent_video_path)
 
     print("   Adding narration + burning in captions...")
     subs_arg = escape_for_ffmpeg_filter(captions_path)
@@ -171,7 +173,6 @@ def main():
     run(cmd)
 
     silent_video_path.unlink(missing_ok=True)
-
     print(f"\n✅ Final video ready: {final_path}")
 
 

@@ -17,8 +17,9 @@ Run:
 import csv
 import json
 import os
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import gspread
 from dotenv import load_dotenv
@@ -81,7 +82,7 @@ def ensure_shorts_hashtag(text: str) -> str:
 
 
 def log_upload(video_id: str, title: str, source_link: str) -> None:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(ZoneInfo("Asia/Colombo"))
     row = [
         now.strftime("%Y-%m-%d"),
         now.strftime("%H:%M:%S"),
@@ -97,7 +98,7 @@ def log_upload(video_id: str, title: str, source_link: str) -> None:
     with open(LOG_FILE, "a", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
         if is_new_file:
-            writer.writerow(["date", "time_utc", "title", "video_id", "video_url", "source_article"])
+            writer.writerow(["date", "time_colombo", "title", "video_id", "video_url", "source_article"])
         writer.writerow(row)
 
     if not SERVICE_ACCOUNT_FILE.exists() or not GOOGLE_SHEET_ID:

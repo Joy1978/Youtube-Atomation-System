@@ -34,6 +34,9 @@ jobs:
       - name: Install Python dependencies
         run: pip install -r requirements.txt
 
+      - name: Install Playwright browser
+        run: playwright install --with-deps chromium
+
       - name: Cache Whisper model
         uses: actions/cache@v4
         with:
@@ -64,6 +67,6 @@ jobs:
         run: |
           git config user.name "ai-news-shorts-bot"
           git config user.email "actions@github.com"
-          git add agents/state/recent_topics.json upload_log.csv 2>/dev/null || true
+          git add agents/state/recent_topics.json agents/state/used_visuals.json upload_log.csv 2>/dev/null || true
           git diff --cached --quiet || git commit -m "Update pipeline state [skip ci]"
           git push
