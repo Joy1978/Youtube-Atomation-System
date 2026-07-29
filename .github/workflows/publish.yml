@@ -10,6 +10,9 @@ on:
     - cron: "0 16 * * *"
   workflow_dispatch: {}  # lets you trigger a run manually from the Actions tab, for testing
 
+permissions:
+  contents: write  # needed so the workflow can commit state files back to the repo
+
 jobs:
   publish:
     runs-on: ubuntu-latest
