@@ -39,9 +39,9 @@ jobs:
 
       - name: Restore secret credential files
         run: |
-          echo "${{ secrets.CLIENT_SECRET_JSON }}" > client_secret.json
-          echo "${{ secrets.TOKEN_JSON }}" > token.json
-          echo "${{ secrets.SERVICE_ACCOUNT_JSON }}" > service_account.json
+          echo "${{ secrets.CLIENT_SECRET_JSON_B64 }}" | base64 -d > client_secret.json
+          echo "${{ secrets.TOKEN_JSON_B64 }}" | base64 -d > token.json
+          echo "${{ secrets.SERVICE_ACCOUNT_JSON_B64 }}" | base64 -d > service_account.json
 
       - name: Run pipeline
         working-directory: agents
