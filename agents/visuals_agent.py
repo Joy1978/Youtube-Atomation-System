@@ -175,23 +175,27 @@ def main():
 
     used_ids = load_used_ids()
     newly_used_ids = []
-    downloaded = []
+    downloaded = []  # stock video/photo clips only, screenshot inserted later
+    screenshot_entry = None
 
-    # 1) Source article screenshot, if we can get one.
+    # 1) Source article screenshot, if we can get one — captured now, but
+    #    inserted into the middle of the sequence later (not shown first).
     if INCLUDE_SCREENSHOT:
         shot_path = OUTPUT_DIR / f"visual_{timestamp}_0_screenshot.jpg"
         print(f"📸 Capturing source screenshot: {data.get('source_link', '(no link)')}")
         if capture_source_screenshot(data.get("source_link", ""), shot_path):
-            downloaded.append(
-                {"path": str(shot_path), "type": "image", "search_term": "source_screenshot",
-                 "pexels_id": None, "duration_seconds": None}
-            )
+            screenshot_entry = {
+                "path": str(shot_path), "type": "image", "search_term": "source_screenshot",
+                "pexels_id": None, "duration_seconds": None,
+            }
+
+    stock_target = NUM_CLIPS - (1 if screenshot_entry else 0)
 
     # 2) Stock video clips.
     terms = search_terms_from_script(data)
     print(f"🔎 Searching Pexels videos for: {data['title']}")
     for term in terms:
-        if len(downloaded) >= NUM_CLIPS:
+        if len(downloaded) >= stock_target:
             break
         page = random.choice(PAGE_POOL)
         try:
@@ -201,7 +205,7 @@ def main():
             continue
 
         for video in results:
-            if len(downloaded) >= NUM_CLIPS:
+            if len(downloaded) >= stock_target:
                 break
             vid = video["id"]
             if vid in used_ids or vid in newly_used_ids:
@@ -225,10 +229,10 @@ def main():
             )
 
     # 3) Fill any remaining slots with stock photos (Ken Burns'd in Step 5).
-    if len(downloaded) < NUM_CLIPS:
-        print(f"🔎 Filling {NUM_CLIPS - len(downloaded)} remaining slot(s) with photos...")
+    if len(downloaded) < stock_target:
+        print(f"🔎 Filling {stock_target - len(downloaded)} remaining slot(s) with photos...")
         for term in terms:
-            if len(downloaded) >= NUM_CLIPS:
+            if len(downloaded) >= stock_target:
                 break
             page = random.choice(PAGE_POOL)
             try:
@@ -238,7 +242,7 @@ def main():
                 continue
 
             for photo in results:
-                if len(downloaded) >= NUM_CLIPS:
+                if len(downloaded) >= stock_target:
                     break
                 pid = photo["id"]
                 photo_key = f"photo_{pid}"
@@ -262,8 +266,14 @@ def main():
                      "pexels_id": photo_key, "duration_seconds": None}
                 )
 
-    if not downloaded:
+    if not downloaded and not screenshot_entry:
         raise SystemExit("Could not gather any visuals (screenshot, video, or photo). Try again later.")
+
+    # Insert the screenshot into the middle of the sequence: video(s), then
+    # screenshot, then remaining video(s) — not shown first.
+    if screenshot_entry:
+        mid = len(downloaded) // 2
+        downloaded.insert(mid, screenshot_entry)
 
     save_used_ids(newly_used_ids)
 
