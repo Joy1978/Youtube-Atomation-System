@@ -19,20 +19,21 @@ Run:
 import os
 import json
 import re
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
 import feedparser
 from dotenv import load_dotenv
 from google import genai
+from google.genai import errors as genai_errors
 
 load_dotenv()
 
 API_KEY = os.environ.get("GEMINI_API_KEY")
 MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.1-flash-lite")
 OUTPUT_DIR = Path(__file__).parent / "output"
-STATE_DIR = Path(__file__).parent / "state"
-HISTORY_FILE = STATE_DIR / "recent_topics.json"
+HISTORY_FILE = OUTPUT_DIR / "recent_topics.json"
 
 # Free, no-key-needed RSS feeds. Add/remove sources here freely.
 RSS_FEEDS = [
@@ -128,6 +129,34 @@ def extract_json(text: str) -> dict:
     return json.loads(cleaned)
 
 
+def call_gemini_with_retry(client, article: dict, max_attempts: int = 4):
+    """Gemini occasionally returns transient 503 (overloaded) or 429 (rate
+    limit) errors — not a real failure, just needs a short wait and retry."""
+    delay = 15  # seconds
+    last_error = None
+    for attempt in range(1, max_attempts + 1):
+        try:
+            return client.models.generate_content(
+                model=MODEL,
+                contents=build_prompt(article),
+            )
+        except genai_errors.ServerError as e:
+            last_error = e
+            print(f"⚠️  Gemini server error (attempt {attempt}/{max_attempts}): {e}")
+        except genai_errors.ClientError as e:
+            if getattr(e, "code", None) != 429:
+                raise  # not a transient rate-limit — don't retry, surface it
+            last_error = e
+            print(f"⚠️  Gemini rate limited (attempt {attempt}/{max_attempts}): {e}")
+
+        if attempt < max_attempts:
+            print(f"   Retrying in {delay}s...")
+            time.sleep(delay)
+            delay *= 2  # exponential backoff
+
+    raise SystemExit(f"Gemini kept failing after {max_attempts} attempts: {last_error}")
+
+
 def generate_script() -> dict:
     if not API_KEY:
         raise SystemExit(
@@ -151,10 +180,7 @@ def generate_script() -> dict:
     print(f"📰 Using: {article['title']}  ({article['source']})")
 
     client = genai.Client(api_key=API_KEY)
-    response = client.models.generate_content(
-        model=MODEL,
-        contents=build_prompt(article),
-    )
+    response = call_gemini_with_retry(client, article)
 
     data = extract_json(response.text)
 
@@ -180,7 +206,6 @@ def generate_script() -> dict:
 
 def main():
     OUTPUT_DIR.mkdir(exist_ok=True)
-    STATE_DIR.mkdir(exist_ok=True)
     data = generate_script()
 
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
