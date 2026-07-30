@@ -112,6 +112,23 @@ def build_visuals_segment(clips: list[dict], total_duration: float, out_path: Pa
     run(cmd)
 
 
+def extract_thumbnail(clips: list[dict], out_path: Path) -> bool:
+    """Grab a frame from the first *video* clip (not the screenshot/photos)
+    to use as the YouTube thumbnail — more reliable than YouTube's
+    auto-picker, which can land on the wrong asset."""
+    first_video = next((c for c in clips if c["type"] == "video"), None)
+    if not first_video:
+        return False
+    cmd = [
+        "ffmpeg", "-y", "-i", first_video["path"],
+        "-ss", "0.5", "-frames:v", "1",
+        "-vf", f"scale={TARGET_WIDTH}:{TARGET_HEIGHT}:force_original_aspect_ratio=increase,crop={TARGET_WIDTH}:{TARGET_HEIGHT}",
+        str(out_path),
+    ]
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    return result.returncode == 0 and out_path.exists()
+
+
 def main():
     script_path = find_latest("script_*.json")
     timestamp = script_path.stem.replace("script_", "")
@@ -136,6 +153,12 @@ def main():
 
     silent_video_path = OUTPUT_DIR / f"_silent_{timestamp}.mp4"
     build_visuals_segment(clips, audio_duration, silent_video_path)
+
+    thumbnail_path = OUTPUT_DIR / f"thumbnail_{timestamp}.jpg"
+    if extract_thumbnail(clips, thumbnail_path):
+        print(f"   Thumbnail extracted: {thumbnail_path.name}")
+    else:
+        print("   ⚠️  Could not extract a thumbnail frame (no video clip in this batch?).")
 
     print("   Adding narration + burning in captions...")
     subs_arg = escape_for_ffmpeg_filter(captions_path)

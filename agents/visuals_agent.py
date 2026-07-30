@@ -269,11 +269,11 @@ def main():
     if not downloaded and not screenshot_entry:
         raise SystemExit("Could not gather any visuals (screenshot, video, or photo). Try again later.")
 
-    # Insert the screenshot into the middle of the sequence: video(s), then
-    # screenshot, then remaining video(s) — not shown first.
+    # Screenshot goes last in the sequence (not first, not middle) — this
+    # also keeps it out of the way of YouTube's auto-thumbnail picker,
+    # though we set a custom thumbnail explicitly below anyway.
     if screenshot_entry:
-        mid = len(downloaded) // 2
-        downloaded.insert(mid, screenshot_entry)
+        downloaded.append(screenshot_entry)
 
     save_used_ids(newly_used_ids)
 

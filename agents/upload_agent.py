@@ -114,6 +114,26 @@ def log_upload(video_id: str, title: str, source_link: str) -> None:
         print(f"⚠️  Google Sheet logging failed ({e}) — entry is still saved in upload_log.csv.")
 
 
+def set_custom_thumbnail(youtube, video_id: str, thumbnail_path: Path) -> None:
+    if not thumbnail_path.exists():
+        print("ℹ️  No thumbnail file found — skipping custom thumbnail (YouTube will auto-pick one).")
+        return
+    try:
+        youtube.thumbnails().set(
+            videoId=video_id, media_body=MediaFileUpload(str(thumbnail_path))
+        ).execute()
+        print("🖼️  Custom thumbnail set.")
+    except Exception as e:
+        # Custom thumbnails require a phone-verified YouTube channel —
+        # this fails cleanly (not a pipeline-breaking error) if that's not done yet.
+        print(
+            f"⚠️  Could not set custom thumbnail ({e}). This usually means the "
+            "channel isn't phone-verified yet — verify it in YouTube Studio "
+            "under Settings > Channel > Feature eligibility, then this will work. "
+            "The video still uploaded fine; YouTube just auto-picked a thumbnail instead."
+        )
+
+
 def main():
     script_path = find_latest("script_*.json")
     timestamp = script_path.stem.replace("script_", "")
@@ -152,6 +172,10 @@ def main():
             print(f"   Upload progress: {int(status.progress() * 100)}%")
 
     video_id = response["id"]
+
+    thumbnail_path = OUTPUT_DIR / f"thumbnail_{timestamp}.jpg"
+    set_custom_thumbnail(youtube, video_id, thumbnail_path)
+
     log_upload(video_id, data["title"], data.get("source_link", ""))
 
     print(f"\n✅ Uploaded! https://youtube.com/shorts/{video_id}")
