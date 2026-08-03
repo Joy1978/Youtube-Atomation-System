@@ -1,0 +1,132 @@
+<svg viewBox="0 0 1500 480" xmlns="http://www.w3.org/2000/svg" font-family="'Segoe UI', Arial, sans-serif">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0b1220"/>
+      <stop offset="100%" stop-color="#0f1b33"/>
+    </linearGradient>
+    <linearGradient id="nodeFill" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#16233f"/>
+      <stop offset="100%" stop-color="#101a30"/>
+    </linearGradient>
+    <linearGradient id="dotGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#22d3ee"/>
+      <stop offset="100%" stop-color="#38bdf8"/>
+    </linearGradient>
+    <filter id="glow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <rect x="0" y="0" width="1500" height="480" rx="22" fill="url(#bg)"/>
+
+  <!-- Title -->
+  <text x="40" y="52" fill="#e2e8f0" font-size="24" font-weight="700">AI News Shorts — Automation Pipeline</text>
+  <text x="40" y="78" fill="#7dd3fc" font-size="14">GitHub Actions triggers this automatically 3x/day — zero manual steps</text>
+
+  <!-- Trigger badge -->
+  <g transform="translate(40,110)">
+    <rect width="150" height="60" rx="12" fill="#0e2a1f" stroke="#34d399" stroke-width="1.5"/>
+    <text x="75" y="26" fill="#6ee7b7" font-size="12" text-anchor="middle" font-weight="600">GITHUB ACTIONS</text>
+    <text x="75" y="44" fill="#a7f3d0" font-size="11" text-anchor="middle">cron · 3x / day</text>
+    <animate attributeName="opacity" values="0.55;1;0.55" dur="2.4s" repeatCount="indefinite"/>
+  </g>
+
+  <!-- connecting path (trigger -> node1) -->
+  <path id="p0" d="M190,140 H240" stroke="#334155" stroke-width="2" fill="none"/>
+
+  <!-- Main pipeline path across all nodes (used for the flowing dot animation) -->
+  <path id="mainpath"
+        d="M 240,140
+           H 400
+           V 320
+           H 560
+           V 140
+           H 760
+           V 320
+           H 980
+           V 140
+           H 1180
+           V 320
+           H 1380"
+        stroke="#334155" stroke-width="2" fill="none"/>
+
+  <!-- Traveling pulse dot along the whole pipeline, looping -->
+  <circle r="7" fill="url(#dotGrad)" filter="url(#glow)">
+    <animateMotion dur="6s" repeatCount="indefinite" rotate="auto">
+      <mpath href="#mainpath"/>
+    </animateMotion>
+  </circle>
+
+  <!-- ===== Node template macro (manually repeated) ===== -->
+
+  <!-- 1. RSS News -->
+  <g transform="translate(240,100)">
+    <rect width="160" height="80" rx="14" fill="url(#nodeFill)" stroke="#38bdf8" stroke-width="1.5"/>
+    <text x="80" y="30" text-anchor="middle" font-size="22">📡</text>
+    <text x="80" y="54" text-anchor="middle" fill="#e2e8f0" font-size="13" font-weight="600">RSS News Feed</text>
+    <text x="80" y="70" text-anchor="middle" fill="#94a3b8" font-size="10">TechCrunch · VentureBeat</text>
+    <animate attributeName="stroke-opacity" values="0.4;1;0.4" dur="6s" begin="0s" repeatCount="indefinite"/>
+  </g>
+
+  <!-- 2. Script Agent -->
+  <g transform="translate(400,280)">
+    <rect width="160" height="80" rx="14" fill="url(#nodeFill)" stroke="#38bdf8" stroke-width="1.5"/>
+    <text x="80" y="30" text-anchor="middle" font-size="22">✍️</text>
+    <text x="80" y="54" text-anchor="middle" fill="#e2e8f0" font-size="13" font-weight="600">Script Agent</text>
+    <text x="80" y="70" text-anchor="middle" fill="#94a3b8" font-size="10">Gemini API</text>
+    <animate attributeName="stroke-opacity" values="0.4;1;0.4" dur="6s" begin="0.85s" repeatCount="indefinite"/>
+  </g>
+
+  <!-- 3. Voice Agent -->
+  <g transform="translate(560,100)">
+    <rect width="160" height="80" rx="14" fill="url(#nodeFill)" stroke="#38bdf8" stroke-width="1.5"/>
+    <text x="80" y="30" text-anchor="middle" font-size="22">🗣️</text>
+    <text x="80" y="54" text-anchor="middle" fill="#e2e8f0" font-size="13" font-weight="600">Voice Agent</text>
+    <text x="80" y="70" text-anchor="middle" fill="#94a3b8" font-size="10">Edge-TTS</text>
+    <animate attributeName="stroke-opacity" values="0.4;1;0.4" dur="6s" begin="1.7s" repeatCount="indefinite"/>
+  </g>
+
+  <!-- 4. Visuals Agent -->
+  <g transform="translate(760,280)">
+    <rect width="160" height="80" rx="14" fill="url(#nodeFill)" stroke="#38bdf8" stroke-width="1.5"/>
+    <text x="80" y="30" text-anchor="middle" font-size="22">🎞️</text>
+    <text x="80" y="54" text-anchor="middle" fill="#e2e8f0" font-size="13" font-weight="600">Visuals Agent</text>
+    <text x="80" y="70" text-anchor="middle" fill="#94a3b8" font-size="10">Pexels + Screenshot</text>
+    <animate attributeName="stroke-opacity" values="0.4;1;0.4" dur="6s" begin="2.55s" repeatCount="indefinite"/>
+  </g>
+
+  <!-- 5. Captions Agent -->
+  <g transform="translate(980,100)">
+    <rect width="160" height="80" rx="14" fill="url(#nodeFill)" stroke="#38bdf8" stroke-width="1.5"/>
+    <text x="80" y="30" text-anchor="middle" font-size="22">💬</text>
+    <text x="80" y="54" text-anchor="middle" fill="#e2e8f0" font-size="13" font-weight="600">Captions Agent</text>
+    <text x="80" y="70" text-anchor="middle" fill="#94a3b8" font-size="10">Whisper</text>
+    <animate attributeName="stroke-opacity" values="0.4;1;0.4" dur="6s" begin="3.4s" repeatCount="indefinite"/>
+  </g>
+
+  <!-- 6. Video Assembly -->
+  <g transform="translate(1180,280)">
+    <rect width="160" height="80" rx="14" fill="url(#nodeFill)" stroke="#38bdf8" stroke-width="1.5"/>
+    <text x="80" y="30" text-anchor="middle" font-size="22">🎬</text>
+    <text x="80" y="54" text-anchor="middle" fill="#e2e8f0" font-size="13" font-weight="600">Video Assembly</text>
+    <text x="80" y="70" text-anchor="middle" fill="#94a3b8" font-size="10">FFmpeg</text>
+    <animate attributeName="stroke-opacity" values="0.4;1;0.4" dur="6s" begin="4.25s" repeatCount="indefinite"/>
+  </g>
+
+  <!-- 7. Upload -->
+  <g transform="translate(1380,100)">
+    <rect width="160" height="80" rx="14" fill="url(#nodeFill)" stroke="#f87171" stroke-width="1.5"/>
+    <text x="80" y="30" text-anchor="middle" font-size="22">🚀</text>
+    <text x="80" y="54" text-anchor="middle" fill="#e2e8f0" font-size="13" font-weight="600">YouTube Upload</text>
+    <text x="80" y="70" text-anchor="middle" fill="#94a3b8" font-size="10">+ Sheets Log</text>
+    <animate attributeName="stroke-opacity" values="0.4;1;0.4" dur="6s" begin="5.1s" repeatCount="indefinite"/>
+  </g>
+
+  <!-- Footer strip -->
+  <text x="40" y="430" fill="#64748b" font-size="12">Script → Voice → Visuals → Captions → Assembly → Upload — one fully automated run, three times a day.</text>
+  <text x="40" y="452" fill="#475569" font-size="11">Zero manual steps · Free-tier tools only</text>
+</svg>
