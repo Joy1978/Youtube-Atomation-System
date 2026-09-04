@@ -47,6 +47,32 @@ def run(cmd: list[str]) -> None:
         print(result.stderr[-3000:])
         raise SystemExit(f"Command failed: {' '.join(cmd)}")
 
+def run_filtergraph_from_file(prefix_args: list[str], filter_text: str, suffix_args: list[str], script_path: Path) -> None:
+    """Runs ffmpeg with a complex filtergraph loaded from a file instead of
+    inline on the command line (avoids argv-quoting edge cases with the
+    subtitles+force_style filter). The CLI flag for "load filtergraph from
+    file" changed between ffmpeg versions:
+      - ffmpeg <= ~7.x : -filter_complex_script <file>
+      - ffmpeg 8/9+    : -/filter_complex <file>   (old flag removed)
+    Try the old flag first, and transparently fall back to the new one if
+    ffmpeg reports it as unrecognized, so this works on both a dev machine
+    and whatever ffmpeg version GitHub Actions' runner ships.
+    """
+    script_path.write_text(filter_text)
+
+    def attempt(flag: str):
+        cmd = ["ffmpeg", "-y"] + prefix_args + [flag, str(script_path)] + suffix_args
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        return cmd, result
+
+    cmd, result = attempt("-filter_complex_script")
+    if result.returncode != 0 and "Unrecognized option" in result.stderr and "filter_complex_script" in result.stderr:
+        cmd, result = attempt("-/filter_complex")
+
+    if result.returncode != 0:
+        print(result.stderr[-3000:])
+        raise SystemExit(f"Command failed: {' '.join(cmd)}")
+
 def get_audio_duration(audio_path: Path) -> float:
     cmd = ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "json", str(audio_path)]
     result = subprocess.run(cmd, capture_output=True, text=True)
@@ -154,14 +180,6 @@ def main():
 
     print("   Adding narration + burning in captions...")
     subs_arg = escape_for_ffmpeg_filter(captions_path)
-
-    # Write the filter graph to a script file instead of passing it inline as
-    # a single -filter_complex argv string. Some ffmpeg builds (seen on
-    # ffmpeg 8/9) choke on the mix of single-quoted subtitles path +
-    # force_style value in one inline string ("No option name near ..."),
-    # even though the string is well-formed. -filter_complex_script reads
-    # the exact same graph syntax straight out of a file and sidesteps that
-    # argv-parsing edge case entirely.
     filter_script_path = OUTPUT_DIR / f"_filter_{timestamp}.txt"
 
     music_path = pick_random_music()
@@ -172,13 +190,12 @@ def main():
             f"[2:a]atrim=0:{audio_duration:.3f},volume={MUSIC_VOLUME}[music];"
             f"[1:a][music]amix=inputs=2:duration=first:dropout_transition=2[outa]"
         )
-        filter_script_path.write_text(filter_complex)
-        cmd = [
-            "ffmpeg", "-y",
+        prefix_args = [
             "-i", str(silent_video_path),
             "-i", str(voice_path),
             "-stream_loop", "-1", "-i", str(music_path),
-            "-filter_complex_script", str(filter_script_path),
+        ]
+        suffix_args = [
             "-map", "[outv]", "-map", "[outa]",
             "-c:v", "libx264", "-c:a", "aac",
             "-shortest",
@@ -187,18 +204,18 @@ def main():
     else:
         print("   No background music found in assets/music/ — skipping (voice-only).")
         filter_complex = f"[0:v]subtitles='{subs_arg}':force_style='{SUBTITLE_STYLE}'[outv]"
-        filter_script_path.write_text(filter_complex)
-        cmd = [
-            "ffmpeg", "-y",
+        prefix_args = [
             "-i", str(silent_video_path),
             "-i", str(voice_path),
-            "-filter_complex_script", str(filter_script_path),
+        ]
+        suffix_args = [
             "-map", "[outv]", "-map", "1:a",
             "-c:v", "libx264", "-c:a", "aac",
             "-shortest",
             str(final_path),
         ]
-    run(cmd)
+
+    run_filtergraph_from_file(prefix_args, filter_complex, suffix_args, filter_script_path)
 
     silent_video_path.unlink(missing_ok=True)
     filter_script_path.unlink(missing_ok=True)
