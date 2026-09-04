@@ -186,7 +186,7 @@ def main():
     if music_path:
         print(f"   Mixing in background music: {music_path.name}")
         filter_complex = (
-            f"[0:v]subtitles={subs_arg}:force_style='{SUBTITLE_STYLE}'[outv];"
+            f"[0:v]subtitles=filename={subs_arg}:force_style='{SUBTITLE_STYLE}'[outv];"
             f"[2:a]atrim=0:{audio_duration:.3f},volume={MUSIC_VOLUME}[music];"
             f"[1:a][music]amix=inputs=2:duration=first:dropout_transition=2[outa]"
         )
@@ -203,7 +203,7 @@ def main():
         ]
     else:
         print("   No background music found in assets/music/ — skipping (voice-only).")
-        filter_complex = f"[0:v]subtitles={subs_arg}:force_style='{SUBTITLE_STYLE}'[outv]"
+        filter_complex = f"[0:v]subtitles=filename={subs_arg}:force_style='{SUBTITLE_STYLE}'[outv]"
         prefix_args = [
             "-i", str(silent_video_path),
             "-i", str(voice_path),
