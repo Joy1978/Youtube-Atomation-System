@@ -24,6 +24,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import feedparser
+feedparser.USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36"
 from dotenv import load_dotenv
 from google import genai
 from google.genai import errors as genai_errors
